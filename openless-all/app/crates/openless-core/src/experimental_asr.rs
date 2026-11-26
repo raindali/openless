@@ -444,7 +444,14 @@ impl ExperimentalAsrService {
                     if !self.slots.lock().unwrap()[model.index()].saved.download_pending {
                         return Err(error("Model files are missing; explicit download is required"));
                     }
-                    self.store.download_target(model.target(), LocalAsrMirror::Huggingface).await?;
+                    // Honor the user-configured download mirror instead of
+                    // hard-coding huggingface.co. Falls back to hf-mirror for
+                    // this fork (mainland network), overridable by
+                    // OPENLESS_ASR_MIRROR (huggingface|hf-mirror|modelscope).
+                    let mirror_source = std::env::var("OPENLESS_ASR_MIRROR")
+                        .unwrap_or_else(|_| "hf-mirror".to_string());
+                    let mirror = LocalAsrMirror::from_legacy(&mirror_source);
+                    self.store.download_target(model.target(), mirror).await?;
                 }
                 Ok::<(), BackendError>(())
             } => result?,
